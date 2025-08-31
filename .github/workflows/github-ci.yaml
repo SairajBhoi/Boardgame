@@ -51,7 +51,7 @@ jobs:
       - name: Build with Maven
         env:
           PATH: /opt/maven/bin:${{ env.PATH }}
-        run: mvn clean install -DskipTests
+        run: /opt/maven/bin/mvn clean install -DskipTests
 
       - name: SonarQube Analysis
         env:
@@ -61,7 +61,7 @@ jobs:
           SONAR_PROJECT_KEY: ${{ secrets.SONAR_PROJECT_KEY }}
           SONAR_PROJECT_NAME: ${{ secrets.SONAR_PROJECT_NAME }}
         run: |
-          mvn org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
+          /opt/maven/bin/mvn org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
             -Dsonar.projectKey=$SONAR_PROJECT_KEY \
             -Dsonar.projectName=$SONAR_PROJECT_NAME \
             -Dsonar.host.url=$SONAR_HOST_URL \
