@@ -11,6 +11,7 @@ on:
 jobs:
   build-and-sonarqube:
     runs-on: self-hosted
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -41,22 +42,27 @@ jobs:
 
       - name: Debug Runner Environment
         run: |
+          echo "PATH = $PATH"
           whoami
-          echo $PATH
-          /opt/maven/bin/mvn --version  n
+          which java || echo "java not found"
+          which mvn || echo "mvn not found"
+          /opt/maven/bin/mvn --version
 
-      - name: Build and analyze
+      - name: Build with Maven
         env:
-          PATH: ${{ env.PATH }}:/opt/maven/bin  
+          PATH: /opt/maven/bin:${{ env.PATH }}
+        run: mvn clean install -DskipTests
+
+      - name: SonarQube Analysis
+        env:
+          PATH: /opt/maven/bin:${{ env.PATH }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
           SONAR_PROJECT_KEY: ${{ secrets.SONAR_PROJECT_KEY }}
           SONAR_PROJECT_NAME: ${{ secrets.SONAR_PROJECT_NAME }}
         run: |
-          /opt/maven/bin/mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
+          mvn org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
             -Dsonar.projectKey=$SONAR_PROJECT_KEY \
             -Dsonar.projectName=$SONAR_PROJECT_NAME \
-            -Dsonar.host.url=$SONAR_HOST_URL
-
-      # - name: Build Docker image
-      #   run: docker build -t boardgame-app:latest .
+            -Dsonar.host.url=$SONAR_HOST_URL \
+            -Dsonar.login=$SONAR_TOKEN
