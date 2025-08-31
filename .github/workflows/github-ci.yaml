@@ -1,6 +1,9 @@
 name: Java CI with SonarQube
 
 on:
+  push:
+    branches:
+      - main
   pull_request:
     branches:
       - main
@@ -8,20 +11,28 @@ on:
 jobs:
   build-and-sonarqube:
     runs-on: self-hosted
-
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for better SonarQube analysis
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: 21
           distribution: temurin
-          cache: maven 
+          cache: maven
+
+      - name: Cache SonarQube packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
 
       - name: Cache Maven packages
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.m2/repository
           key: ${{ runner.os }}-maven-${{ hashFiles('pom.xml') }}
@@ -32,28 +43,20 @@ jobs:
         run: |
           whoami
           echo $PATH
-          /opt/maven/bin/mvn --version  # Verify Maven version explicitly
+          /opt/maven/bin/mvn --version  # Verify Maven version
 
-      - name: Build with Maven
+      - name: Build and analyze
         env:
-          PATH: ${{ env.PATH }}:/opt/maven/bin  
-        run: mvn clean package -DskipTests
-
-      - name: SonarQube Scan
-        env:
-          PATH: ${{ env.PATH }}:/opt/maven/bin 
+          PATH: ${{ env.PATH }}:/opt/maven/bin  # Ensure Maven is in PATH
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_URL: ${{ secrets.SONAR_URL }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
           SONAR_PROJECT_KEY: ${{ secrets.SONAR_PROJECT_KEY }}
           SONAR_PROJECT_NAME: ${{ secrets.SONAR_PROJECT_NAME }}
         run: |
-          sonar-scanner \
+          mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
             -Dsonar.projectKey=$SONAR_PROJECT_KEY \
-            -Dsonar.sources=. \
-            -Dsonar.host.url=$SONAR_URL \
-            -Dsonar.login=$SONAR_TOKEN \
             -Dsonar.projectName=$SONAR_PROJECT_NAME \
-            -Dsonar.java.binaries=.
+            -Dsonar.host.url=$SONAR_HOST_URL
 
       # - name: Build Docker image
       #   run: docker build -t boardgame-app:latest .
