@@ -51,6 +51,8 @@ jobs:
           which java || echo "java not found"
           which mvn || echo "mvn not found"
           mvn --version
+          java -version
+          javac -version
 
       - name: Build with Maven
         run: mvn clean install -DskipTests
