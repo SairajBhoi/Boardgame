@@ -15,7 +15,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Full history for better SonarQube analysis
+          fetch-depth: 0  
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
@@ -43,17 +43,17 @@ jobs:
         run: |
           whoami
           echo $PATH
-          /opt/maven/bin/mvn --version  # Verify Maven version
+          /opt/maven/bin/mvn --version  n
 
       - name: Build and analyze
         env:
-          PATH: ${{ env.PATH }}:/opt/maven/bin  # Ensure Maven is in PATH
+          PATH: ${{ env.PATH }}:/opt/maven/bin  
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
           SONAR_PROJECT_KEY: ${{ secrets.SONAR_PROJECT_KEY }}
           SONAR_PROJECT_NAME: ${{ secrets.SONAR_PROJECT_NAME }}
         run: |
-          mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
+          /opt/maven/bin/mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
             -Dsonar.projectKey=$SONAR_PROJECT_KEY \
             -Dsonar.projectName=$SONAR_PROJECT_NAME \
             -Dsonar.host.url=$SONAR_HOST_URL
