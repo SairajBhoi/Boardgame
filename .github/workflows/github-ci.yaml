@@ -3,7 +3,7 @@ name: Java CI with SonarQube
 on:
   pull_request:
     branches:
-      - dev
+      - main
 
 jobs:
   build-and-sonarqube:
@@ -30,21 +30,12 @@ jobs:
       - name: Build with Maven
         run: mvn clean package -DskipTests
 
-      - name: Fetch SonarQube credentials from SSM
-        run: |
-          echo "Fetching SonarQube credentials from AWS SSM..."
-          SONAR_TOKEN=$(aws ssm get-parameter --name "/boardgame/sonarqube/token" --with-decryption --query "Parameter.Value" --output text)
-          SONAR_URL=$(aws ssm get-parameter --name "/boardgame/sonarqube/url" --with-decryption --query "Parameter.Value" --output text)
-          SONAR_PROJECT_KEY=$(aws ssm get-parameter --name "/boardgame/sonarqube/project_key" --with-decryption --query "Parameter.Value" --output text)
-          SONAR_PROJECT_NAME=$(aws ssm get-parameter --name "/boardgame/sonarqube/project_name" --with-decryption --query "Parameter.Value" --output text)
-          
-          # Export variables for subsequent steps
-          echo "SONAR_TOKEN=$SONAR_TOKEN" >> $GITHUB_ENV
-          echo "SONAR_URL=$SONAR_URL" >> $GITHUB_ENV
-          echo "SONAR_PROJECT_KEY=$SONAR_PROJECT_KEY" >> $GITHUB_ENV
-          echo "SONAR_PROJECT_NAME=$SONAR_PROJECT_NAME" >> $GITHUB_ENV
-
       - name: SonarQube Scan
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_URL: ${{ secrets.SONAR_URL }}
+          SONAR_PROJECT_KEY: ${{ secrets.SONAR_PROJECT_KEY }}
+          SONAR_PROJECT_NAME: ${{ secrets.SONAR_PROJECT_NAME }}
         run: |
           sonar-scanner \
             -Dsonar.projectKey=$SONAR_PROJECT_KEY \
@@ -54,5 +45,5 @@ jobs:
             -Dsonar.projectName=$SONAR_PROJECT_NAME \
             -Dsonar.java.binaries=.
 
-      - name: Build Docker image
-        run: docker build -t boardgame-app:latest .
+      # - name: Build Docker image
+      #   run: docker build -t boardgame-app:latest .
