@@ -18,6 +18,7 @@ jobs:
         with:
           java-version: 21
           distribution: temurin
+          cache: maven 
 
       - name: Cache Maven packages
         uses: actions/cache@v3
@@ -27,11 +28,20 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-maven-
 
+      - name: Debug Runner Environment
+        run: |
+          whoami
+          echo $PATH
+          /opt/maven/bin/mvn --version  # Verify Maven version explicitly
+
       - name: Build with Maven
+        env:
+          PATH: ${{ env.PATH }}:/opt/maven/bin  
         run: mvn clean package -DskipTests
 
       - name: SonarQube Scan
         env:
+          PATH: ${{ env.PATH }}:/opt/maven/bin 
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_URL: ${{ secrets.SONAR_URL }}
           SONAR_PROJECT_KEY: ${{ secrets.SONAR_PROJECT_KEY }}
