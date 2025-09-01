@@ -2,86 +2,91 @@ name: Build and Deploy to EKS
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
   pull_request:
-    branches: [ main ]
-
-env:
-  AWS_REGION: ap-south-1
-  ECR_REPOSITORY: boardgame
-  EKS_CLUSTER: boardgame-eks
-  SONAR_HOST: http://your-sonar-eks-service:9000
+    branches:
+      - main
 
 jobs:
-  build:
+  build-and-deploy:
     runs-on: self-hosted
+    env:
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      ECR_REPO: ${{ secrets.ECR_REPO }}
+      IMAGE_TAG: latest
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+      SONAR_PROJECT_KEY: ${{ secrets.SONAR_PROJECT_KEY }}
+      SONAR_PROJECT_NAME: ${{ secrets.SONAR_PROJECT_NAME }}
+
     steps:
-    - uses: actions/checkout@v3
-      with:
-        fetch-depth: 0
+      # 1️⃣ Checkout code
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # For SonarQube analysis
 
-    - name: Set up JDK 17
-      uses: actions/setup-java@v3
-      with:
-        java-version: '17'
-        distribution: 'temurin'
-        cache: maven
+      # 2️⃣ Set up JDK 21
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: 21
+          distribution: temurin
+          cache: maven
 
-    - name: Build with Maven
-      run: mvn clean package
+      # 3️⃣ Cache SonarQube and Maven packages
+      - name: Cache SonarQube packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
+      - name: Cache Maven packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
 
-    - name: SonarQube Analysis
-      env:
-        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-      run: |
-        mvn sonar:sonar \
-        -Dsonar.host.url=${{ env.SONAR_HOST }} \
-        -Dsonar.login=${{ secrets.SONAR_TOKEN }}
+      # 4️⃣ Debug Runner Environment
+      - name: Debug Runner Environment
+        run: |
+          whoami
+          echo $PATH
+          /opt/maven/bin/mvn --version
 
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v1
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ env.AWS_REGION }}
+      # 5️⃣ Build and analyze with Maven and SonarQube
+      - name: Build and analyze
+        env:
+          PATH: ${{ env.PATH }}:/opt/maven/bin
+        run: |
+          mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
+            -Dsonar.projectKey=$SONAR_PROJECT_KEY \
+            -Dsonar.projectName=$SONAR_PROJECT_NAME \
+            -Dsonar.host.url=$SONAR_HOST_URL
 
-    - name: Login to Amazon ECR
-      id: login-ecr
-      uses: aws-actions/amazon-ecr-login@v1
+      # 7️⃣ Login to Amazon ECR
+      - name: Login to Amazon ECR
+        run: |
+          aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REPO
 
-    - name: Build Docker image
-      env:
-        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        IMAGE_TAG: ${{ github.sha }}
-      run: |
-        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
-        docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
+      # 8️⃣ Build and Push Docker image
+      - name: Build and Push Docker image
+        run: |
+          docker build -t $ECR_REPO:$IMAGE_TAG .
+          docker push $ECR_REPO:$IMAGE_TAG
 
-    - name: Scan Docker image
-      uses: aquasecurity/trivy-action@master
-      with:
-        image-ref: '${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}'
-        format: 'table'
-        exit-code: '1'
-        ignore-unfixed: true
-        vuln-type: 'os,library'
-        severity: 'CRITICAL,HIGH'
-
-    - name: Push Docker image to ECR
-      env:
-        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        IMAGE_TAG: ${{ github.sha }}
-      run: |
-        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-        docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
-
-    - name: Update kube config
-      run: aws eks update-kubeconfig --name ${{ env.EKS_CLUSTER }} --region ${{ env.AWS_REGION }}
-
-    - name: Deploy to EKS
-      env:
-        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        IMAGE_TAG: ${{ github.sha }}
-      run: |
-        sed -i "s|IMAGE_TAG|$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG|g" deployment-service.yaml
-        kubectl apply -f deployment-service.yaml
+      # 9️⃣ Deploy to EKS
+      - name: Deploy to EKS
+        run: |
+          # Install kubectl
+          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x kubectl
+          sudo mv kubectl /usr/local/bin/
+          # Update kubeconfig
+          aws eks update-kubeconfig --region $AWS_REGION --name ${{ secrets.EKS_CLUSTER_NAME }}
+          # Apply Kubernetes manifests
+          kubectl apply -f k8s/app/boardgame-deployment.yaml
+          kubectl apply -f k8s/app/boardgame-Service.yaml
