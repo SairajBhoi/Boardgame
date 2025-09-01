@@ -62,3 +62,12 @@ jobs:
             -Dsonar.projectName=$SONAR_PROJECT_NAME \
             -Dsonar.host.url=$SONAR_HOST_URL \
             -Dsonar.token=$SONAR_TOKEN
+      
+      
+      - name: Build Docker Image
+        run: |
+          docker build -t boardgame:latest .
+
+      - name: Delete Docker Image
+        run: |
+          docker rmi boardgame:latest || true
