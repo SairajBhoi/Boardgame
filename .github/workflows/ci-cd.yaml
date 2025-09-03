@@ -23,13 +23,13 @@ jobs:
         with:
           fetch-depth: 0 
 
-      # Debug Runner Environment
-      - name: Debug Runner Environment
-        run: |
-          whoami
-          echo $PATH
-          aws sts get-caller-identity  
-          docker --version 
+      # # Debug Runner Environment
+      # - name: Debug Runner Environment
+      #   run: |
+      #     whoami
+      #     echo $PATH
+      #     aws sts get-caller-identity  
+      #     docker --version 
 
 
       # Login to Amazon ECR
