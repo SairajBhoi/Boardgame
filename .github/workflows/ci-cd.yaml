@@ -58,5 +58,5 @@ jobs:
           # Update kubeconfig
           aws eks update-kubeconfig --region $AWS_REGION --name ${{ secrets.EKS_CLUSTER_NAME }}
           # Apply Kubernetes manifests
-          kubectl apply -f ${{ github.workspace }}k8s/manifests/app/boardgame-deployment.yaml
-          kubectl apply -f ${{ github.workspace }}k8s/manifests/app/boardgame-Service.yaml
+          kubectl apply -f ${{ github.workspace }}/k8s/manifests/app/boardgame-deployment.yaml
+          kubectl apply -f ${{ github.workspace }}/k8s/manifests/app/boardgame-Service.yaml
