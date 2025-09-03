@@ -31,6 +31,10 @@ jobs:
       #     aws sts get-caller-identity  
       #     docker --version 
 
+      - name: Check AWS Identity
+        run: |
+          curl -s http://169.254.169.254/latest/meta-data/iam/security-credentials/
+          aws sts get-caller-identity
 
       # Login to Amazon ECR
       - name: Login to Amazon ECR
