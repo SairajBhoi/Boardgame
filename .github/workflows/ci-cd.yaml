@@ -15,6 +15,7 @@ jobs:
       AWS_REGION: ${{ secrets.AWS_REGION }}
       ECR_REPO: ${{ secrets.ECR_REPO }}
       IMAGE_TAG: latest
+      AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
 
     steps:
       # Checkout code
