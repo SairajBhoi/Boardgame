@@ -17,9 +17,11 @@ data:
         replacement: '${1}:9100'
         target_label: __address__
         action: replace
-    - job_name: 'prometheus'
+    - job_name: 'ec2-github-runner'
       static_configs:
-      - targets: ['localhost:9090']
+      - targets: ['3.110.143.200:9100']
+        labels:
+          instance: github-runner
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim

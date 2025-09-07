@@ -1,0 +1,6 @@
+mapRoles: |
+  - rolearn: arn:aws:iam::586622271145:role/github-runner
+    username: github-runner
+    groups:
+      - deployer-group
+
