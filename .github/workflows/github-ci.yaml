@@ -66,6 +66,36 @@ jobs:
         run: |
           docker build -t boardgame:latest .
 
+            - name: Run Trivy Scan (Generate Report)
+        run: |
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v $(pwd):/app \
+            aquasec/trivy:latest \
+            image boardgame:latest \
+            --format json \
+            --output /app/trivy-report.json \
+            --ignore-unfixed || true
+
+      - name: Upload Trivy Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-report
+          path: trivy-report.json
+
+      - name: Fail on CRITICAL vulnerabilities
+        run: |
+          CRITICALS=$(jq '[.Results[].Vulnerabilities[]? | select(.Severity=="CRITICAL")] | length' trivy-report.json)
+          echo "Found $CRITICALS critical vulnerabilities"
+          if [ "$CRITICALS" -gt 0 ]; then
+            echo "❌ Critical vulnerabilities found!"
+            exit 1
+          else
+            echo "✅ No critical vulnerabilities"
+          fi
+
+
       - name: Delete Docker Image
         run: |
           docker rmi boardgame:latest
