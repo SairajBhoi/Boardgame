@@ -15,8 +15,8 @@ vpc:
     privateAccess: false
 
 nodeGroups:
-  - name: boardgame-ng-01
-    instanceType: t3a.small
+  - name: boardgame-ng-02
+    instanceType: t3a.medium
     desiredCapacity: 2
     privateNetworking: false
     ami: auto
