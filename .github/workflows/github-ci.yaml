@@ -97,5 +97,6 @@ jobs:
 
 
       - name: Delete Docker Image
+        if: always()
         run: |
           docker rmi boardgame:latest
