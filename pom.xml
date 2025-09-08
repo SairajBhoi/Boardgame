@@ -146,11 +146,11 @@
     <distributionManagement>
         <repository>
             <id>maven-releases</id>
-            <url>http://13.200.255.132:8081/repository/maven-releases/</url>
+            <url>http://ac7cd4c71d28144748c9c4162ac3669b-1059020167.ap-south-1.elb.amazonaws.com/repository/maven-releases/</url>
         </repository>
         <snapshotRepository>
             <id>maven-snapshots</id>
-            <url>http://13.200.255.132:8081/repository/maven-snapshots/</url>
+            <url>http://ac7cd4c71d28144748c9c4162ac3669b-1059020167.ap-south-1.elb.amazonaws.com/repository/maven-snapshots/</url>
         </snapshotRepository>
     </distributionManagement>
 

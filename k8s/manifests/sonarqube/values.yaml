@@ -1,0 +1,27 @@
+
+community:
+  enabled: true
+
+postgresql:
+  existingSecret: postgres-secret
+  existingSecretUserKey: username
+  existingSecretPasswordKey: password
+  primary:
+    persistence:
+      enabled: true
+      storageClass: sonarqube-sgc
+      size: 5Gi
+      accessModes:
+        - ReadWriteOnce
+
+persistence:
+  enabled: true
+  existingClaim: sonarqube-pvc
+
+monitoringPasscodeSecretName: sonarqube-monitoring
+monitoringPasscodeSecretKey: passcode
+
+service:
+  type: NodePort
+  port: 9000
+  nodePort: 30000
