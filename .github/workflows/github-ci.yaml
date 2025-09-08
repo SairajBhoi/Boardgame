@@ -1,0 +1,125 @@
+name: Java CI with SonarQube
+
+on:
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build-and-sonarqube:
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  
+
+      - name: Cache SonarQube packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
+
+      - name: Cache Maven packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
+
+      - name: Ensure Maven + coreutils are available
+        run: |
+          sudo yum install -y coreutils findutils
+          echo "Adding Maven to PATH"
+          echo "/opt/maven/bin" >> $GITHUB_PATH
+
+      - name: Debug Runner Environment
+        run: |
+          echo "PATH = $PATH"
+          whoami
+          which java || echo "java not found"
+          which mvn || echo "mvn not found"
+          mvn --version
+          java -version
+          javac -version
+
+      - name: Build with Maven
+        run: mvn clean install -DskipTests
+
+      - name: SonarQube Analysis
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+          SONAR_PROJECT_KEY: ${{ secrets.SONAR_PROJECT_KEY }}
+          SONAR_PROJECT_NAME: ${{ secrets.SONAR_PROJECT_NAME }}
+        run: |
+          mvn org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
+            -Dsonar.projectKey=$SONAR_PROJECT_KEY \
+            -Dsonar.projectName=$SONAR_PROJECT_NAME \
+            -Dsonar.host.url=$SONAR_HOST_URL \
+            -Dsonar.token=$SONAR_TOKEN
+      
+      - name: Configure Maven settings for Nexus
+        run: |
+          mkdir -p ~/.m2
+          cat > ~/.m2/settings.xml <<EOF
+          <settings>
+            <servers>
+              <server>
+                <id>maven-releases</id>
+                <username>${{ secrets.NEXUS_USERNAME }}</username>
+                <password>${{ secrets.NEXUS_PASSWORD }}</password>
+              </server>
+              <server>
+                <id>maven-snapshots</id>
+                <username>${{ secrets.NEXUS_USERNAME }}</username>
+                <password>${{ secrets.NEXUS_PASSWORD }}</password>
+              </server>
+            </servers>
+          </settings>
+          EOF
+
+      - name: Deploy to Nexus
+        run: mvn clean deploy -DskipTests
+
+
+      - name: Build Docker Image
+        run: |
+          docker build -t boardgame:latest .
+
+      - name: Run Trivy Scan (Generate Report)
+        run: |
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v $(pwd):/app \
+            aquasec/trivy:latest \
+            image boardgame:latest \
+            --format json \
+            --output /app/trivy-report.json \
+            --ignore-unfixed || true
+
+      - name: Upload Trivy Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-report
+          path: trivy-report.json
+
+      - name: Fail on CRITICAL vulnerabilities
+        run: |
+          CRITICALS=$(jq '[.Results[].Vulnerabilities[]? | select(.Severity=="CRITICAL")] | length' trivy-report.json)
+          echo "Found $CRITICALS critical vulnerabilities"
+          if [ "$CRITICALS" -gt 0 ]; then
+            echo "Critical vulnerabilities found!"
+            exit 1
+          else
+            echo "No critical vulnerabilities"
+          fi
+
+
+      - name: Delete Docker Image
+        if: always()
+        run: |
+          docker rmi boardgame:latest
