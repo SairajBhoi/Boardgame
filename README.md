@@ -51,3 +51,49 @@ This web application displays lists of board games and their reviews. While anyo
   - username: bugs    |     password: bunny (user role)
   - username: daffy   |     password: duck  (manager role)
 5. You can also sign-up as a new user and customize your role to play with the application! 😊
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+# EKS Cluster Setup
+- Defined in `k8/eks/cluster.yaml`
+- Created using: `eksctl create cluster -f k8/eks/cluster.yaml`
+- **Region:** ap-south-1  
+- **Worker nodes:** t3a.medium (2 nodes)
+
+# Application Deployment
+- **Manifests location:** `k8/manifests/app/`
+- **Deployment:** `boardgame-deployment.yaml` (app container from ECR)  
+- **Service:** `boardgame-service.yaml` (LoadBalancer for external access)  
+- **Accessing the Application:** `kubectl get svc boardgame-service` (retrieve external LoadBalancer endpoint)
+
+# Monitoring with Prometheus & Node Exporter
+- **RBAC & ServiceAccount:** grants Prometheus access to resources  
+- **Node Exporter:** runs as a DaemonSet, exposes metrics (:9100)  
+- **Prometheus ConfigMap:** scrapes Kubernetes nodes (via Node Exporter) and GitHub Runner EC2 (3.110.143.200:9100)  
+- **Persistent Storage:** 10Gi PVC (gp2) for TSDB  
+- **Prometheus Deployment:** persistent storage + RBAC enabled  
+- **Services:** node-exporter → exposes metrics on port 9100, prometheus → exposes Prometheus UI on port 9090  
+- **Access:** Local: `kubectl port-forward svc/prometheus -n monitor 9090:9090` → http://localhost:9090; External: change Service type to LoadBalancer to get AWS ELB endpoint  
+- **Metrics Available:** Kubernetes node metrics (CPU, memory, disk, network), GitHub runner EC2 metrics
+
+# Nexus on Kubernetes
+- Runs in namespace: nexsus  
+- Deployment with PVC for persistent storage  
+- Exposed externally via LoadBalancer Service  
+- Stores Maven artifacts (snapshots & releases)
+
+# SonarQube on Kubernetes
+- Installed via Helm  
+- Runs with NodePort service for external access  
+- Integrated into CI/CD for static code analysis
+
+# CI/CD Pipeline Overview
+- Implemented with GitHub Actions and self-hosted runner  
+- **Steps:**  
+  1. Checkout Code  
+  2. Cache Dependencies: SonarQube cache, Maven dependencies  
+  3. Build with Maven: `mvn clean install -DskipTests`  
+  4. SonarQube Analysis: uses project key, name, token; runs static code quality analysis  
+  5. Deploy Artifacts to Nexus: configure settings.xml with credentials; publish snapshots/releases  
+  6. Build Docker Image: creates application container image  
+  7. Trivy Security Scan: scans Docker image for vulnerabilities; generates JSON report; uploads report as GitHub artifact; pipeline fails if CRITICAL vulnerabilities found  
+  8. Cleanup: deletes Docker image after scan
