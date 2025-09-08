@@ -72,7 +72,7 @@ This web application displays lists of board games and their reviews. While anyo
 - **Persistent Storage:** 10Gi PVC (gp2) for TSDB  
 - **Prometheus Deployment:** persistent storage + RBAC enabled  
 - **Services:** node-exporter → exposes metrics on port 9100, prometheus → exposes Prometheus UI on port 9090  
-- **Access:** Local: `kubectl port-forward svc/prometheus -n monitor 9090:9090` → http://localhost:9090; External: change Service type to LoadBalancer to get AWS ELB endpoint  
+- **Access:** Local: `kubectl port-forward svc/prometheus -n monitor 9090:9090` → http://localhost:9090;  
 - **Metrics Available:** Kubernetes node metrics (CPU, memory, disk, network), GitHub runner EC2 metrics
 
 # Nexus on Kubernetes
