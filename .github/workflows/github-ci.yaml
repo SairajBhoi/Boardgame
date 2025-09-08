@@ -61,7 +61,7 @@ jobs:
             -Dsonar.host.url=$SONAR_HOST_URL \
             -Dsonar.token=$SONAR_TOKEN
       
-            - name: Configure Maven settings for Nexus
+      - name: Configure Maven settings for Nexus
         run: |
           mkdir -p ~/.m2
           cat > ~/.m2/settings.xml <<EOF
